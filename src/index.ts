@@ -1,65 +1,77 @@
-import { fromEvent, Subject, Observable, interval } from "rxjs";
-import { map, withLatestFrom } from "rxjs/operators";
+import { fromEvent, BehaviorSubject, interval, combineLatest } from "rxjs";
+import { filter, withLatestFrom } from "rxjs/operators";
 
 console.log("App has started!");
 
-const minusFiveBtn: HTMLElement = document.querySelector("button#minusFiveSec");
+const changingAmount = 5;
+
+const seconds: HTMLElement = document.querySelector("#seconds");
 const pauseBtn: HTMLElement = document.querySelector("button#pause");
 const startBtn: HTMLElement = document.querySelector("button#start");
-const plusFiveBtn: HTMLElement = document.querySelector("button#plusFiveSec");
 const resetBtn: HTMLElement = document.querySelector("button#reset");
-const seconds: HTMLElement = document.querySelector("#seconds");
+const incrementBtn: HTMLElement = document.querySelector("button#increment");
+const decrementBtn: HTMLElement = document.querySelector("button#decrement");
 
-const isStarted$ = new Subject<boolean>();
+const secondsCount = new BehaviorSubject<number>(0);
+const isPaused$ = new BehaviorSubject<boolean>(false);
+const isStarted$ = new BehaviorSubject<boolean>(false);
 
-fromEvent(startBtn, "click").subscribe(() => {
+const timer$ = interval(1000);
+const startEvent = fromEvent(startBtn, "click");
+const pauseEvent = fromEvent(pauseBtn, "click");
+const incrementEvent = fromEvent(incrementBtn, "click");
+const decrementEvent = fromEvent(decrementBtn, "click");
+
+combineLatest([timer$, startEvent])
+  .pipe(
+    withLatestFrom(isPaused$),
+    filter((isStarted) => isStarted[1] === false)
+  )
+  .subscribe(() => {
+    if (isStarted$.value) {
+      secondsCount.next(secondsCount.value + 1);
+      console.log(secondsCount.value);
+      renderSecondsOnPage(secondsCount.value);
+    }
+  });
+
+startEvent.subscribe(() => {
   isStarted$.next(true);
   console.log(isStarted$);
 });
 
-fromEvent(pauseBtn, "click").subscribe(() => {
+pauseEvent.subscribe(() => {
   isStarted$.next(false);
   console.log(isStarted$);
 });
 
-fromEvent(plusFiveBtn, "click").subscribe(() => {
-  console.log("plusFiveBtn");
+incrementEvent.subscribe(() => {
+  console.log("incrementBtn");
+  secondsCount.next(secondsCount.value + changingAmount);
+  renderSecondsOnPage(secondsCount.value);
 });
 
-const timer$ = new Observable<number>((subscriber) => {
-  let count: number = 0;
-  const intervalId = setInterval(() => {
-    subscriber.next(++count);
-  }, 1000);
-
-  return () => {
-    clearInterval(intervalId);
-  };
+decrementEvent.subscribe(() => {
+  console.log("decrementBtn");
+  if (secondsCount.value < changingAmount) {
+    secondsCount.next(0);
+  } else {
+    secondsCount.next(secondsCount.value - changingAmount);
+  }
+  renderSecondsOnPage(secondsCount.value);
 });
 
-// const timer$ = interval(1000);
+fromEvent(resetBtn, "click").subscribe(() => {
+  console.log("resetBtn");
+  seconds.innerText = String(`00`);
+  isStarted$.next(false);
+  secondsCount.next(0);
+});
 
-// const subscribeToTimer = timer$
-//   .pipe(withLatestFrom(isStarted$))
-//   .subscribe(([value, isStarted]) => {
-//     console.log(value);
-//     // return () => {
-//     //   clearInterval(intervalId);
-//     // };
-
-//     if (value < 10 && isStarted) {
-//       seconds.innerText = String(`0${value}`);
-//     } else if (isStarted) {
-//       seconds.innerText = String(`${value}`);
-//     }
-//     //   console.log(value);
-//   });
-
-// isStarted$.subscribe(() => {
-//   console.log("1234");
-//   let count: number = 0;
-//   const intervalId = setInterval(() => {
-//     ++count;
-//     seconds.innerText = String(`0${count}`);
-//   }, 1000);
-// });
+function renderSecondsOnPage(value: number) {
+  if (value < 10) {
+    seconds.innerText = String(`0${value}`);
+  } else {
+    seconds.innerText = String(`${value}`);
+  }
+}
